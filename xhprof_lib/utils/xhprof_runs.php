@@ -71,7 +71,7 @@ class XHProfRuns_Default implements iXHProfRuns {
   private $suffix = 'xhprof';
 
   private function gen_run_id($type) {
-    return uniqid();
+    return getenv('XHPROF_RUNID') ?: uniqid();
   }
 
   private function file_name($run_id, $type) {
@@ -109,7 +109,7 @@ class XHProfRuns_Default implements iXHProfRuns {
   }
 
   public function get_run($run_id, $type, &$run_desc) {
-    $file_name = $this->file_name($run_id, $type);
+		$file_name = $this->file_name($run_id, $type);
 
     if (!file_exists($file_name)) {
       xhprof_error("Could not find file $file_name");
@@ -163,3 +163,76 @@ class XHProfRuns_Default implements iXHProfRuns {
     }
   }
 }
+
+/**
+ * XHProfRuns_Mongo stores profiling results in a Mongo database.
+ *
+ * It connects to a mongo instance specified by
+ * the "XHPROF_MONGO_URI" env.
+ *
+ * @author Lachlan Donald <lachlan@ljd.cc>
+ */
+class XHProfRuns_Mongo implements iXHProfRuns {
+
+	private $mongo, $collection;
+
+  private function gen_run_id($type) {
+    return getenv('XHPROF_RUNID') ?: uniqid();
+  }
+
+	public function __construct($mongo = null) {
+		// use either a Mongo instance, or create one
+		$this->mongo = $mongo ?: new Mongo(getenv('XHPROF_MONGO_URI'));
+	}
+
+	private function collection($type) {
+		return $this->mongo->selectCollection('xhprof', "runs_{$type}");
+	}
+
+  public function get_run($run_id, $type, &$run_desc) {
+
+		$run = $this->collection($type)->findOne(array("_id" => $run_id));
+
+    if (!$run) {
+      xhprof_error("Could not find run $run_id");
+      $run_desc = "Invalid Run Id = $run_id";
+      return null;
+		}
+
+		$run_desc = "XHProf Run (Namespace=$type Uri={$run['uri']})";
+		return $run['data'];
+  }
+
+	public function save_run($xhprof_data, $type, $run_id = null) {
+
+    if ($run_id === null) {
+      $run_id = $this->gen_run_id($type);
+		}
+
+		$this->collection($type)->insert(array(
+			'_id' => $run_id,
+			'data' => $xhprof_data,
+			'uri' => $_SERVER['REQUEST_URI'],
+			'server' => $_SERVER['SERVER_NAME'],
+			'time' => $_SERVER['REQUEST_TIME'],
+		));
+
+    return $run_id;
+  }
+}
+
+/**
+ * Returns the iXHProfRuns specified in the env XHPROF_RUN_IMPL
+ */
+function xhprof_runs_from_config() {
+	switch($impl = getenv('XHPROF_RUN_IMPL')) {
+		case 'mongo':
+			return new XHProfRuns_Mongo();
+		case 'default':
+		case false:
+			return new XHProfRuns_Default();
+		default:
+			 xhprof_error("Unknown driver: $impl");
+	}
+}
+
