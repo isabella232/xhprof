@@ -508,7 +508,12 @@ function profiler_report ($url_params,
   // set up the action links for operations that can be done on this report
   $links = array();
   $links [] =  xhprof_render_link("View Top Level $diff_text Report",
-                                 $top_link_query_string);
+		$top_link_query_string);
+
+	if(getenv('XHPROF_RUN_IMPL') == 'mongo')
+		$links []= xhprof_render_link("View Related Runs",
+			"mongo.php?run={$run1}&source={$_GET['source']}"
+		);
 
   if ($diff_mode) {
     $inverted_params = $url_params;

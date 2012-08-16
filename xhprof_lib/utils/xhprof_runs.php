@@ -215,10 +215,16 @@ class XHProfRuns_Mongo implements iXHProfRuns {
 			'uri' => $_SERVER['REQUEST_URI'],
 			'server' => $_SERVER['SERVER_NAME'],
 			'time' => $_SERVER['REQUEST_TIME'],
+			'type' => $type,
 		));
 
     return $run_id;
-  }
+	}
+
+	public function mongoCollection($type)
+	{
+		return $this->collection($type);
+	}
 }
 
 /**
