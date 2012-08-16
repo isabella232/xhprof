@@ -8,5 +8,3 @@ if (extension_loaded('xhprof') && $xhprof_data = xhprof_disable())
 	$xhprof_runs = xhprof_runs_from_config();
   $xhprof_runs->save_run($xhprof_data, getenv('XHPROF_NAMESPACE') ?: 'default');
 }
-
-ob_flush();
